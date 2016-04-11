@@ -6,10 +6,11 @@
   "service_owner": "modbus",
   "space_owner": "ge",
   "password": "ombre2383",
-  "work_dir": "ombre2383",
-  "pidfile": "ombre2383",
-  "path": "ombre2383",
-  "log_path": "",
-  "start_level": "",
-  "stop_level": ""
+  "work_dir": "/opt/${NAME}",
+  "pidfile": "${WORK_DIR}/${NAME}.pid",
+  "path": "/sbin:/usr/sbin:/bin:/usr/bin",
+  "log_path": "${WORK_DIR}/log",
+  "service_scriptname": "/etc/init.d/$NAME",
+  "start_level": "99",
+  "stop_level": "01"
 }

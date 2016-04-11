@@ -3,6 +3,7 @@ from fabric.api import *
 from fabric.contrib.console import *
 import json
 
+
 class EdgeService:
     def __init__(
             self,
@@ -18,7 +19,8 @@ class EdgeService:
             log_path='${WORK_DIR}/log',
             start_level='99',
             stop_level='01',
-            password='qwe123'
+            password='qwe123',
+            scriptname='/etc/init.d/$NAME'
     ):
         self.name = name
         self.path = path
@@ -33,6 +35,7 @@ class EdgeService:
         self.start_level = start_level
         self.stop_level = stop_level
         self.password = password
+        self.scriptname = scriptname
 
     def generateLsbScript(self, templateLocation, destionationLocation):
         if os.path.isfile(templateLocation) is False:
@@ -40,7 +43,7 @@ class EdgeService:
         else:
             local('cp ' + templateLocation + ' ' + destionationLocation + '/' + self.name)
 
-            s = open(destionationLocation).read()
+            s = open(destionationLocation + '/' + self.name).read()
             s = s.replace('<service_path>', self.path)
             s = s.replace('<service_name>', self.name)
             s = s.replace('<service_description>', self.description)
@@ -50,6 +53,7 @@ class EdgeService:
             s = s.replace('<service_owner>', self.user)
             s = s.replace('<space_owner>', self.group)
             s = s.replace('<service_pidfile>', self.pidfile)
+            s = s.replace('<service_scriptname>', self.scriptname)
             s = s.replace('<service_log_path>', self.log_path)
 
             f = open(destionationLocation + '/' + self.name, 'w')
@@ -116,11 +120,11 @@ def install_service(scriptfile, application, start_level, stop_level):
     sudo('update-rc.d -f ' + scriptfile + ' remove')
     sudo('update-rc.d ' + scriptfile + ' defaults ' + start_level + ' ' + stop_level)
 
-
     with settings(warn_only=True):
         sudo('systemctl daemon-reload')
 
-def deploy_application(template,config):
+
+def deploy_application(template, config):
     print ("START DEPLOYING APPLICTION ")
 
     try:
@@ -140,15 +144,23 @@ def deploy_application(template,config):
                 password=app['password'],
                 work_dir=app['work_dir'],
                 pidfile=app['pidfile'],
+                scriptname=app['service_scriptname'],
                 path=app['path'],
                 log_path=app['log_path'],
                 start_level=app['start_level'],
                 stop_level=app['stop_level'],
-            ).generateLsbScript(templateLocation=template,destionationLocation='./tmp/')
+            ).generateLsbScript(templateLocation=template, destionationLocation='./tmp')
 
-
-    except:
+            # install_service(
+            #     scriptfile='./tmp/' + service.name,
+            #     application=service.name,
+            #     start_level=service.start_level,
+            #     stop_level=service.stop_level
+            # )
+    except Exception as error:
         print ("COULD NOT READ " + config)
+        print "IOError:", error
+
 
 def create_space(user, group, home):
     print ("CREATE SPACE FOR APPLICATION")
