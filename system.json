@@ -1,0 +1,44 @@
+{
+  "name": "Hydra",
+  "version": "1.0.0",
+  "administrator": "testmassinstaller",
+  "password": "ombre2383",
+  "applications": [
+    {
+      "service_name": "modbus_tcp",
+      "service_description": "Boot script for modbus tcp drivers",
+      "service_daemon": "python",
+      "service_daemon_args": "mbtcp_allusb.py --use_own_addr --enable-modbus",
+      "service_owner": "modbus",
+      "space_owner": "ge",
+      "password": "ombre2383"
+    },
+    {
+      "service_name": "modbus_usb",
+      "service_description": "Boot script for modbus snap drivers",
+      "service_daemon": "python",
+      "service_daemon_args": "mbtcp_allusb_expert.py",
+      "service_owner": "modbus",
+      "space_owner": "ge",
+      "password": "ombre2383"
+    }
+  ],
+  "dependencies": {
+    "python": ["pyusb==1.0.0b2", "websocket-client", "pymodbus"],
+    "linux": []
+  },
+  "edges": [
+    {
+      "address": "192.168.1.101",
+      "name": "office-lab-01"
+    },
+    {
+      "address": "192.168.1.102",
+      "name": "office-lab-02"
+    },
+    {
+      "address": "192.168.1.102",
+      "name": "office-lab-02"
+    }
+  ]
+}

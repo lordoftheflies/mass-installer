@@ -1,0 +1,15 @@
+{
+  "service_name": "modbus_tcp",
+  "service_description": "Boot script for modbus tcp drivers",
+  "service_daemon": "python",
+  "service_daemon_args": "mbtcp_allusb.py --use_own_addr --enable-modbus",
+  "service_owner": "modbus",
+  "space_owner": "ge",
+  "password": "ombre2383",
+  "work_dir": "ombre2383",
+  "pidfile": "ombre2383",
+  "path": "ombre2383",
+  "log_path": "",
+  "start_level": "",
+  "stop_level": ""
+}
