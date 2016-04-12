@@ -2,6 +2,8 @@ import os
 from fabric.api import *
 from fabric.contrib.console import *
 import json
+from crypt import crypt
+import time
 
 
 class EdgeService:
@@ -37,6 +39,24 @@ class EdgeService:
         self.password = password
         self.scriptname = scriptname
 
+    def printProperties(self):
+        print ("=====================================================================")
+        print ("Service name:           " + self.name)
+        print ("Service path:           " + self.path)
+        print ("Service description:    " + self.description)
+        print ("Daemon:                 " + self.daemon)
+        print ("Daemon arguments:       " + self.daemon_args)
+        print ("Working directory:      " + self.work_dir)
+        print ("Owner:                  " + self.user)
+        print ("Group:                  " + self.group)
+        print ("Pidfile:                " + self.pidfile)
+        print ("Log path:               " + self.log_path)
+        print ("Service start-level:    " + self.start_level)
+        print ("Service stop-level:     " + self.stop_level)
+        print ("Owner password:         " + self.password)
+        print ("Script name:            " + self.scriptname)
+        print ("=====================================================================")
+
     def generateLsbScript(self, templateLocation, destionationLocation):
         if os.path.isfile(templateLocation) is False:
             print ("Source template is not exist.")
@@ -60,7 +80,7 @@ class EdgeService:
             f.write(s)
             f.close()
 
-        print ("Linux boot service generated: " + destionationLocation)
+        print ("LINUX BOOT SERVICE GENERATED: " + destionationLocation + "/" + self.name)
 
 
 def host_type():
@@ -93,9 +113,6 @@ def change_hostname(original, new, user, group):
 
         sudo('hostname ' + new)
 
-        run('cd ..')
-        run('rm -r ./tmp')
-
         with settings(warn_only=True):
             sudo('reboot')
 
@@ -108,23 +125,21 @@ def change_hostname(original, new, user, group):
 def install_service(scriptfile, application, start_level, stop_level):
     print ("INSTALL LSB SERVICE " + scriptfile + " FOR APPLICATION " + application)
 
-    run('mkdir -p ./tmp')
-    run('cd ./tmp')
+    put(scriptfile, '~/tmp/' + application + '/' + application)
 
-    put(scriptfile, "tmp/" + application)
+    run('chmod u+x ' + "~/tmp/" + application + "/" + application)
 
-    run('cd ./tmp/' + application)
-    run('chmod a+x ' + scriptfile)
-    sudo('cp ./' + scriptfile + ' /etc/init.d/' + scriptfile)
+    sudo('mv ' + scriptfile + '/' + application + ' /etc/init.d/' + application)
 
-    sudo('update-rc.d -f ' + scriptfile + ' remove')
-    sudo('update-rc.d ' + scriptfile + ' defaults ' + start_level + ' ' + stop_level)
-
-    with settings(warn_only=True):
-        sudo('systemctl daemon-reload')
+    sudo('update-rc.d -f ' + application + ' remove')
+    sudo('update-rc.d ' + application + ' defaults ' + start_level + ' ' + stop_level)
+    #
+    # with settings(warn_only=True):
+    #     sudo('systemctl daemon-reload')
+    # run('rm -r ./tmp')
 
 
-def deploy_application(template, config):
+def deploy_application(template, dist, config):
     print ("START DEPLOYING APPLICTION ")
 
     try:
@@ -149,18 +164,68 @@ def deploy_application(template, config):
                 log_path=app['log_path'],
                 start_level=app['start_level'],
                 stop_level=app['stop_level'],
-            ).generateLsbScript(templateLocation=template, destionationLocation='./tmp')
+            )
 
-            # install_service(
-            #     scriptfile='./tmp/' + service.name,
-            #     application=service.name,
-            #     start_level=service.start_level,
-            #     stop_level=service.stop_level
-            # )
+            service.printProperties()
+
+            service.generateLsbScript(templateLocation=template, destionationLocation='./tmp')
+
+            with settings(warn_only=True):
+                run('rm -r ./tmp')
+            run('mkdir -p ~/tmp')
+            run('mkdir -p ~/tmp/' + service.name)
+
+            create_space(service.user, service.group, service.name, service.password)
+
+            install_service(
+                scriptfile='./tmp/' + service.name,
+                application=service.name,
+                start_level=service.start_level,
+                stop_level=service.stop_level
+            )
+
+            put(dist + '/*', './tmp/' + service.name)
+
+            sudo('cp ./tmp/' + service.name + '/* /opt/' + service.name + '/')
+
+
+            sudo('mkdir -p /opt/' + service.name + '/log')
+            sudo('echo "Output log created ' + time.strftime(
+                "%H:%M:%S") + '" >> /opt/' + service.name + '/log/' + service.name + '.out')
+            sudo('echo "Error log created ' + time.strftime(
+                "%H:%M:%S") + '" >> /opt/' + service.name+ '/log/' + service.name + '.err')
+
+            sudo('chown -R ' + service.user + ':' + service.group + ' /opt/' + service.name + '/')
+
+
+            # run('cd ..')
+
+
+            run('rm -r ./tmp')
+
     except Exception as error:
         print ("COULD NOT READ " + config)
         print "IOError:", error
 
 
-def create_space(user, group, home):
+def create_space(user, group, application, password):
     print ("CREATE SPACE FOR APPLICATION")
+
+    with settings(warn_only=True):
+        sudo(
+            'echo y | echo "" | echo "" | echo "" | echo "" | echo ' + user + ' | echo ' + password + ' | echo ' + password + ' | adduser ' + user)
+    with settings(warn_only=True):
+        crypted_password = crypt(password, 'salt')
+        sudo('usermod --password %s %s' % (crypted_password, user), pty=False)
+    with settings(warn_only=True):
+        sudo('addgroup ' + group)
+    with settings(warn_only=True):
+        sudo('adduser ' + user + ' ' + group)
+    with settings(warn_only=True):
+        sudo('usermod -m -d /opt/' + application + ' -m ' + user)
+        sudo('mkdir -p /opt/' + application)
+
+    # with settings(warn_only=True):
+    #     sudo('mkdir -p /opt/' + application)
+    with settings(warn_only=True):
+        sudo('chown -R ' + user + ':' + group + ' /opt/' + application)
